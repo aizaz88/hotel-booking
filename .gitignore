@@ -1,0 +1,6 @@
+# Node modules
+node_modules/
+
+# Env files
+.env
+.env.* # Optional: ignore other .env variants like .env.local
