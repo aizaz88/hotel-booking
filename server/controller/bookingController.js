@@ -1,7 +1,7 @@
+import transporter from "../configs/nodemailer.js";
 import Booking from "../models/Booking.js";
 import Hotel from "../models/Hotel.js";
 import Room from "../models/Room.js";
-
 //Check Room availability of Function---
 //////////HELPER FUNCTION OF API ////////////////////
 const checkAvailability = async ({ checkInDate, checkOutDate, room }) => {
@@ -41,7 +41,7 @@ export const checkAvailabilityAPI = async (req, res) => {
 
 export const createBooking = async (req, res) => {
   try {
-    const { room, checkIntDate, checkOutDate, guests } = req.body;
+    const { room, checkInDate, checkOutDate, guests } = req.body;
     const user = req.user._id;
     //Check-availability
 
@@ -52,17 +52,17 @@ export const createBooking = async (req, res) => {
     });
 
     if (!isAvailable) {
-      res.json({ success: false, message: "room is not available" });
+      return res.json({ success: false, message: "room is not available" });
     }
 
     //IF room is available get total price according  to number oof nights
-    const roomData = await Room.find(room).populate("hotel");
+    const roomData = await Room.findById(room).populate("hotel");
     let totalPrice = roomData.pricePerNight;
 
     const checkIn = new Date(checkInDate);
     const checkOut = new Date(checkOutDate);
     const timeDiff = checkOut.getTime() - checkIn.getTime();
-    const nights = timeDiff.ceil(timeDiff / (1000 * 3600 * 24));
+    const nights = Math.ceil(timeDiff / (1000 * 3600 * 24));
 
     totalPrice *= nights;
 
@@ -74,13 +74,65 @@ export const createBooking = async (req, res) => {
       checkInDate,
       checkOutDate,
       totalPrice,
+      paymentMethod: "Pay At Hotel",
+      isPaid: false,
     });
 
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error("❌ SMTP verification failed:", error.message);
+      } else {
+        console.log("✅ SMTP server is ready to send emails.");
+      }
+    });
+
+    ////////////////////////////
+    //NODEMAILER USES
+    console.log(req.user.username);
+    console.log(req.user.email);
+    console.log("OKKKK");
+    const mailOptions = {
+      from: process.env.SENDER_EMAIL,
+      to: req.user.email,
+      subject: "Hotel Booking Confirmation",
+      html: `
+        <h2>Your Booking Details</h2>
+        <p>Dear ${req.user.username},</p>
+        <p>Thank you for your booking! Here are your details:</p>
+        <ul>
+          <li><strong>Booking ID:</strong> ${booking._id}</li>
+          <li><strong>Hotel Name:</strong> ${roomData.hotel.name}</li>
+          <li><strong>Location:</strong> ${roomData.hotel.address}</li>
+          <li><strong>Check-in Date:</strong> ${new Date(
+            booking.checkInDate
+          ).toDateString()}</li>
+          <li><strong>Check-out Date:</strong> ${new Date(
+            booking.checkOutDate
+          ).toDateString()}</li>
+          <li><strong>Guests:</strong> ${booking.guests}</li>
+          <li><strong>Total Amount:</strong> ${process.env.CURRENCY || "$"} ${
+        booking.totalPrice
+      }</li>
+        </ul>
+        <p>We look forward to welcoming you!</p>
+        <p>If you need to make any changes, feel free to contact us.</p>
+      `,
+    };
+
+    try {
+      console.log("📧 Sending email to:", req.user.email);
+      await transporter.sendMail(mailOptions);
+      console.log("✅ Email sent successfully.");
+    } catch (error) {
+      console.error("❌ email failed:", error.message);
+    }
+    ////////////////////////////
     res.json({ success: true, message: "Booking created successfully" });
   } catch (error) {
     res.json({
       success: false,
-      message: " ERROR  creating Booking  successfully",
+      message: "Error creating booking",
+      error: error.message,
     });
   }
 };

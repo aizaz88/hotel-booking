@@ -21,6 +21,7 @@
     "mongoos": "^0.0.1-security",
     "mongoose": "^8.16.0",
     "multer": "^2.0.1",
+    "nodemailer": "^7.0.4",
     "svix": "^1.67.0"
   },
   "devDependencies": {
