@@ -88,9 +88,6 @@ export const createBooking = async (req, res) => {
 
     ////////////////////////////
     //NODEMAILER USES
-    console.log(req.user.username);
-    console.log(req.user.email);
-    console.log("OKKKK");
     const mailOptions = {
       from: process.env.SENDER_EMAIL,
       to: req.user.email,
